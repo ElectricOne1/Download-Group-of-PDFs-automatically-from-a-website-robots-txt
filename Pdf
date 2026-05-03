@@ -1,0 +1,56 @@
+import requests
+import re
+import os
+import time
+
+print("--- Automated PDF Scraper (Robots.txt) ---")
+
+# 1. Ask the user for the URL
+# Example: https://www.example.com/robots.txt
+print("just a heads up , if the links have <> around them, this script will not download, sorry about that")
+robots_url = input("Enter the full robots.txt URL, with http:// , here :  ").strip()
+
+target_folder = input("Enter the folder path to save PDFs, like /home/downloads/ :   ").strip()
+
+base_url = "/".join(robots_url.split("/")[:3])
+
+# Create the folder if it doesn't exist
+if not os.path.exists(target_folder):
+    os.makedirs(target_folder)
+    print(f"Created folder: {target_folder}")
+
+try:
+    print(f"Fetching {robots_url}...")
+    headers = {'User-Agent': 'Mozilla/5.0 (Kali Linux; x64)'}
+    response = requests.get(robots_url, headers=headers, timeout=10)
+    
+    # Find all PDF paths in the robots.txt content
+    pdf_paths = re.findall(r'(?:Disallow|Allow):\s*(.*\.pdf)', response.text)
+    
+    if not pdf_paths:
+        print("No PDF links found in this robots.txt.")
+    else:
+        print(f"Found {len(pdf_paths)} PDF files. Starting download...")
+        
+        for path in pdf_paths:
+            path = path.strip()
+            # Construct full URL
+            full_pdf_url = path if path.startswith('http') else f"{base_url}{path}"
+            file_name = path.split('/')[-1]
+            
+            print(f"Downloading: {file_name}")
+            
+            try:
+                pdf_data = requests.get(full_pdf_url, headers=headers, timeout=15).content
+                with open(os.path.join(target_folder, file_name), 'wb') as f:
+                    f.write(pdf_data)
+                
+                # Stealth delay to avoid getting blocked
+                time.sleep(2) 
+            except Exception as e:
+                print(f"Error downloading, bad connection? Or are we being blocked?  {file_name}: {e}")
+
+    print("\n--- All tasks finished! ---")
+
+except Exception as e:
+    print(f"Critical Error: {e}")
